@@ -1,0 +1,15 @@
+{
+  "name": "sql-inventory-management-system",
+  "version": "1.0.0",
+  "description": "A premium SQL-based Inventory Management System with an interactive SQL Playground",
+  "main": "backend/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node backend/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "sqlite3": "^5.1.7"
+  }
+}
