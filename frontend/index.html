@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SQL Inventory Management System</title>
+  <!-- Google Fonts: Inter and Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  <!-- Lucide Icons (loaded via ESM in script or script tag) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="dark-theme">
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <i data-lucide="database" class="logo-icon"></i>
+          <span>SQL Inventory</span>
+        </div>
+      </div>
+      <nav class="sidebar-menu">
+        <button id="tab-dashboard" class="menu-item active" onclick="switchTab('dashboard')">
+          <i data-lucide="layout-dashboard"></i>
+          <span>Dashboard</span>
+        </button>
+        <button id="tab-products" class="menu-item" onclick="switchTab('products')">
+          <i data-lucide="package"></i>
+          <span>Products</span>
+        </button>
+        <button id="tab-transactions" class="menu-item" onclick="switchTab('transactions')">
+          <i data-lucide="arrow-left-right"></i>
+          <span>Transactions</span>
+        </button>
+        <button id="tab-suppliers" class="menu-item" onclick="switchTab('suppliers')">
+          <i data-lucide="truck"></i>
+          <span>Suppliers</span>
+        </button>
+        <button id="tab-playground" class="menu-item" onclick="switchTab('playground')">
+          <i data-lucide="terminal"></i>
+          <span>SQL Playground</span>
+        </button>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <button class="btn btn-danger btn-block" id="btn-reset-db-sidebar" onclick="confirmResetDB()">
+          <i data-lucide="refresh-cw"></i>
+          <span>Reset Database</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <header class="top-bar">
+        <h1 id="page-title">Dashboard</h1>
+        <div class="db-status-badge">
+          <span class="status-indicator"></span>
+          <span>SQLite Connected</span>
+        </div>
+      </header>
+
+      <div class="content-viewport">
+
+        <!-- ================= DASHBOARD TAB ================= -->
+        <section id="sec-dashboard" class="tab-section active">
+          <!-- Stats Summary Grid -->
+          <div class="stats-grid">
+            <div class="stat-card glass">
+              <div class="stat-icon val-color"><i data-lucide="dollar-sign"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Inventory Valuation</span>
+                <span class="stat-value" id="stat-valuation">$0.00</span>
+              </div>
+            </div>
+            <div class="stat-card glass">
+              <div class="stat-icon prod-color"><i data-lucide="box"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Total Products</span>
+                <span class="stat-value" id="stat-total-products">0</span>
+              </div>
+            </div>
+            <div class="stat-card glass warning">
+              <div class="stat-icon low-stock-color"><i data-lucide="alert-triangle"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Low Stock Alerts</span>
+                <span class="stat-value" id="stat-low-stock">0</span>
+              </div>
+            </div>
+            <div class="stat-card glass danger">
+              <div class="stat-icon out-stock-color"><i data-lucide="x-circle"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Out of Stock</span>
+                <span class="stat-value" id="stat-out-stock">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts and Tables Grid -->
+          <div class="dashboard-grid">
+            <!-- SVG Category Stock Chart -->
+            <div class="card glass chart-card">
+              <div class="card-header">
+                <h2>Category Distribution</h2>
+                <span class="card-subtitle">Products and stock counts</span>
+              </div>
+              <div class="card-body">
+                <div class="chart-container" id="category-chart-container">
+                  <!-- Custom SVG/HTML chart will be rendered here by JS -->
+                  <div class="loading-spinner"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Activity Table -->
+            <div class="card glass recent-activity-card">
+              <div class="card-header">
+                <h2>Recent Transactions</h2>
+                <span class="card-subtitle">Latest movements in/out of stock</span>
+              </div>
+              <div class="card-body">
+                <div class="table-container">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Product</th>
+                        <th>Type</th>
+                        <th>Qty</th>
+                        <th>Value</th>
+                      </tr>
+                    </thead>
+                    <tbody id="recent-transactions-tbody">
+                      <tr>
+                        <td colspan="5" class="text-center">Loading transactions...</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= PRODUCTS TAB ================= -->
+        <section id="sec-products" class="tab-section">
+          <div class="actions-bar">
+            <div class="search-box">
+              <i data-lucide="search"></i>
+              <input type="text" id="search-product" placeholder="Search SKU, name..." oninput="fetchProducts()">
+            </div>
+            <div class="filter-box">
+              <select id="filter-category" onchange="fetchProducts()">
+                <option value="">All Categories</option>
+                <!-- Dynamic categories populated here -->
+              </select>
+              <label class="checkbox-container">
+                <input type="checkbox" id="filter-lowstock" onchange="fetchProducts()">
+                <span class="checkmark"></span>
+                Show Low Stock Only
+              </label>
+            </div>
+            <div class="button-group">
+              <button class="btn btn-secondary" onclick="openCategoryModal()">
+                <i data-lucide="folder-plus"></i>
+                <span>Add Category</span>
+              </button>
+              <button class="btn btn-primary" onclick="openProductModal()">
+                <i data-lucide="plus"></i>
+                <span>Add Product</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="card glass">
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>Supplier</th>
+                    <th class="text-right">Price</th>
+                    <th class="text-right">Stock</th>
+                    <th class="text-right">Reorder</th>
+                    <th class="text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="products-tbody">
+                  <!-- Dynamic Products list -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= TRANSACTIONS TAB ================= -->
+        <section id="sec-transactions" class="tab-section">
+          <div class="actions-bar">
+            <div class="search-box">
+              <i data-lucide="search"></i>
+              <input type="text" id="search-transaction" placeholder="Filter by product..." oninput="filterTransactionsTable()">
+            </div>
+            <div class="button-group">
+              <button class="btn btn-primary" onclick="openTransactionModal()">
+                <i data-lucide="arrow-left-right"></i>
+                <span>Log Stock Movement</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="card glass">
+            <div class="table-container">
+              <table class="data-table" id="transactions-full-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Product</th>
+                    <th>SKU</th>
+                    <th>Type</th>
+                    <th class="text-right">Quantity</th>
+                    <th class="text-right">Unit Price</th>
+                    <th class="text-right">Total</th>
+                    <th>Remarks</th>
+                  </tr>
+                </thead>
+                <tbody id="transactions-tbody">
+                  <!-- Dynamic Transactions -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= SUPPLIERS TAB ================= -->
+        <section id="sec-suppliers" class="tab-section">
+          <div class="actions-bar">
+            <div class="search-box">
+              <i data-lucide="search"></i>
+              <input type="text" id="search-supplier" placeholder="Search supplier..." oninput="filterSuppliersTable()">
+            </div>
+            <button class="btn btn-primary" onclick="openSupplierModal()">
+              <i data-lucide="plus"></i>
+              <span>Add Supplier</span>
+            </button>
+          </div>
+
+          <div class="card glass">
+            <div class="table-container">
+              <table class="data-table" id="suppliers-full-table">
+                <thead>
+                  <tr>
+                    <th>Supplier Name</th>
+                    <th>Contact Person</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Address</th>
+                  </tr>
+                </thead>
+                <tbody id="suppliers-tbody">
+                  <!-- Dynamic Suppliers -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= SQL PLAYGROUND TAB ================= -->
+        <section id="sec-playground" class="tab-section">
+          <div class="playground-layout">
+            <!-- Left panel: Editor -->
+            <div class="playground-editor-pane">
+              <div class="card glass no-margin">
+                <div class="card-header flex-header">
+                  <div>
+                    <h2>SQL Query Terminal</h2>
+                    <span class="card-subtitle">Run raw DDL, DML, or DQL commands on SQLite</span>
+                  </div>
+                  <div class="dropdown">
+                    <select id="sql-templates" onchange="loadSQLTemplate()">
+                      <option value="">-- Choose SQL Template --</option>
+                      <option value="select_all">1. Get all products</option>
+                      <option value="low_stock">2. Find low stock products</option>
+                      <option value="val_by_cat">3. Stock valuation by category</option>
+                      <option value="sales_history">4. Sales history list</option>
+                      <option value="supplier_performance">5. Supplier product breakdown</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="card-body editor-body">
+                  <textarea id="sql-editor" placeholder="Write SQL here... e.g. SELECT * FROM products;" spellcheck="false">SELECT * FROM products ORDER BY stock_quantity ASC;</textarea>
+                  <div class="editor-actions">
+                    <button class="btn btn-secondary" onclick="clearSQLEditor()">Clear</button>
+                    <button class="btn btn-primary" onclick="executeSQLPlayground()">
+                      <i data-lucide="play"></i>
+                      <span>Execute Query (Ctrl + Enter)</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Output Box -->
+              <div class="card glass playground-output-card" id="sql-results-card">
+                <div class="card-header flex-header">
+                  <div>
+                    <h2>Query Results</h2>
+                    <span class="card-subtitle" id="sql-query-meta">No query executed yet</span>
+                  </div>
+                  <button class="btn btn-sm btn-secondary" onclick="exportResultsTable()">Export CSV</button>
+                </div>
+                <div class="card-body output-body">
+                  <div id="sql-output-content" class="sql-output-placeholder">
+                    <i data-lucide="play-circle" class="large-icon"></i>
+                    <p>Execute a SELECT query or other command to view tabular results here.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right panel: Schema Explorer -->
+            <div class="playground-schema-pane">
+              <div class="card glass no-margin schema-explorer">
+                <div class="card-header">
+                  <h2>Database Schema Helper</h2>
+                  <span class="card-subtitle">Reference tables & columns</span>
+                </div>
+                <div class="card-body schema-body">
+                  
+                  <!-- categories table -->
+                  <div class="schema-table-item">
+                    <div class="table-name" onclick="toggleSchemaTable('schema-categories')">
+                      <i data-lucide="table"></i>
+                      <span>categories</span>
+                      <i data-lucide="chevron-down" class="chevron"></i>
+                    </div>
+                    <ul class="table-fields" id="schema-categories">
+                      <li><strong>id</strong>: <code>INTEGER PRIMARY KEY</code></li>
+                      <li><strong>name</strong>: <code>TEXT UNIQUE NOT NULL</code></li>
+                      <li><strong>description</strong>: <code>TEXT</code></li>
+                    </ul>
+                  </div>
+
+                  <!-- suppliers table -->
+                  <div class="schema-table-item">
+                    <div class="table-name" onclick="toggleSchemaTable('schema-suppliers')">
+                      <i data-lucide="table"></i>
+                      <span>suppliers</span>
+                      <i data-lucide="chevron-down" class="chevron"></i>
+                    </div>
+                    <ul class="table-fields" id="schema-suppliers">
+                      <li><strong>id</strong>: <code>INTEGER PRIMARY KEY</code></li>
+                      <li><strong>name</strong>: <code>TEXT NOT NULL</code></li>
+                      <li><strong>contact_name</strong>: <code>TEXT</code></li>
+                      <li><strong>email</strong>: <code>TEXT</code></li>
+                      <li><strong>phone</strong>: <code>TEXT</code></li>
+                      <li><strong>address</strong>: <code>TEXT</code></li>
+                    </ul>
+                  </div>
+
+                  <!-- products table -->
+                  <div class="schema-table-item">
+                    <div class="table-name" onclick="toggleSchemaTable('schema-products')">
+                      <i data-lucide="table"></i>
+                      <span>products</span>
+                      <i data-lucide="chevron-down" class="chevron"></i>
+                    </div>
+                    <ul class="table-fields" id="schema-products">
+                      <li><strong>id</strong>: <code>INTEGER PRIMARY KEY</code></li>
+                      <li><strong>sku</strong>: <code>TEXT UNIQUE NOT NULL</code></li>
+                      <li><strong>name</strong>: <code>TEXT NOT NULL</code></li>
+                      <li><strong>description</strong>: <code>TEXT</code></li>
+                      <li><strong>category_id</strong>: <code>INTEGER FK(categories.id)</code></li>
+                      <li><strong>supplier_id</strong>: <code>INTEGER FK(suppliers.id)</code></li>
+                      <li><strong>price</strong>: <code>REAL CHECK(>=0)</code></li>
+                      <li><strong>stock_quantity</strong>: <code>INTEGER CHECK(>=0)</code></li>
+                      <li><strong>reorder_level</strong>: <code>INTEGER CHECK(>=0)</code></li>
+                    </ul>
+                  </div>
+
+                  <!-- transactions table -->
+                  <div class="schema-table-item">
+                    <div class="table-name" onclick="toggleSchemaTable('schema-transactions')">
+                      <i data-lucide="table"></i>
+                      <span>transactions</span>
+                      <i data-lucide="chevron-down" class="chevron"></i>
+                    </div>
+                    <ul class="table-fields" id="schema-transactions">
+                      <li><strong>id</strong>: <code>INTEGER PRIMARY KEY</code></li>
+                      <li><strong>product_id</strong>: <code>INTEGER FK(products.id)</code></li>
+                      <li><strong>transaction_type</strong>: <code>TEXT CHECK(IN/OUT/ADJUST)</code></li>
+                      <li><strong>quantity</strong>: <code>INTEGER CHECK(>0)</code></li>
+                      <li><strong>unit_price</strong>: <code>REAL CHECK(>=0)</code></li>
+                      <li><strong>transaction_date</strong>: <code>TEXT (DATETIME)</code></li>
+                      <li><strong>remarks</strong>: <code>TEXT</code></li>
+                    </ul>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Live SQL Log Drawer (Realtime visual feedback) -->
+      <footer class="sql-log-drawer" id="sql-log-drawer">
+        <div class="drawer-header" onclick="toggleSqlLogDrawer()">
+          <div class="drawer-title">
+            <i data-lucide="terminal"></i>
+            <span>Live SQL Console (Real-time DB Execution Logs)</span>
+          </div>
+          <div class="drawer-controls">
+            <span class="log-badge" id="log-count">0 logs</span>
+            <i data-lucide="chevron-up" id="drawer-arrow"></i>
+          </div>
+        </div>
+        <div class="drawer-content" id="drawer-content">
+          <!-- Live SQL commands will scroll in here -->
+          <div class="console-placeholder">Perform actions in the app to see live SQL statements.</div>
+        </div>
+      </footer>
+    </main>
+
+  </div>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- Product Modal (Add/Edit) -->
+  <div class="modal-overlay" id="product-modal">
+    <div class="modal glass">
+      <div class="modal-header">
+        <h3 id="product-modal-title">Add New Product</h3>
+        <button class="close-btn" onclick="closeProductModal()"><i data-lucide="x"></i></button>
+      </div>
+      <form id="product-form" onsubmit="saveProduct(event)">
+        <input type="hidden" id="product-id">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="p-sku">SKU Code *</label>
+              <input type="text" id="p-sku" required placeholder="e.g. SKU-ELE-004">
+            </div>
+            <div class="form-group">
+              <label for="p-name">Product Name *</label>
+              <input type="text" id="p-name" required placeholder="e.g. Smart Projector">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="p-desc">Description</label>
+            <textarea id="p-desc" placeholder="Product details..."></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="p-category">Category</label>
+              <select id="p-category">
+                <option value="">Select Category</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="p-supplier">Supplier</label>
+              <select id="p-supplier">
+                <option value="">Select Supplier</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="p-price">Unit Retail Price ($) *</label>
+              <input type="number" step="0.01" min="0" id="p-price" required placeholder="0.00">
+            </div>
+            <div class="form-group" id="p-stock-group">
+              <label for="p-stock">Initial Stock Quantity</label>
+              <input type="number" min="0" id="p-stock" value="0">
+            </div>
+            <div class="form-group">
+              <label for="p-reorder">Reorder Threshold Level</label>
+              <input type="number" min="0" id="p-reorder" value="10">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeProductModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Product</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Category Modal -->
+  <div class="modal-overlay" id="category-modal">
+    <div class="modal glass small-modal">
+      <div class="modal-header">
+        <h3>Create Category</h3>
+        <button class="close-btn" onclick="closeCategoryModal()"><i data-lucide="x"></i></button>
+      </div>
+      <form id="category-form" onsubmit="saveCategory(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="cat-name">Category Name *</label>
+            <input type="text" id="cat-name" required placeholder="e.g. Toys">
+          </div>
+          <div class="form-group">
+            <label for="cat-desc">Description</label>
+            <textarea id="cat-desc" placeholder="Category definition..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeCategoryModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Transaction Modal (Log Stock movement) -->
+  <div class="modal-overlay" id="transaction-modal">
+    <div class="modal glass">
+      <div class="modal-header">
+        <h3>Log Stock Movement (Transaction)</h3>
+        <button class="close-btn" onclick="closeTransactionModal()"><i data-lucide="x"></i></button>
+      </div>
+      <form id="transaction-form" onsubmit="saveTransaction(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="t-product">Select Product *</label>
+            <select id="t-product" required onchange="handleTransactionProductChange()">
+              <option value="">-- Select Product --</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="t-type">Movement Type *</label>
+              <select id="t-type" required onchange="handleTransactionTypeChange()">
+                <option value="IN">Stock In (Restock / Purchase)</option>
+                <option value="OUT">Stock Out (Sale / Shipment)</option>
+                <option value="ADJUST">Stock Adjustment (Correction / Audit)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="t-qty" id="t-qty-label">Quantity *</label>
+              <input type="number" min="1" id="t-qty" required placeholder="e.g. 10">
+              <span class="info-note" id="current-stock-info"></span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="t-price" id="t-price-label">Cost / Selling Price ($ per unit) *</label>
+              <input type="number" step="0.01" min="0" id="t-price" required placeholder="0.00">
+            </div>
+            <div class="form-group">
+              <label for="t-remarks">Remarks / Reference</label>
+              <input type="text" id="t-remarks" placeholder="e.g. PO #10423 or Audit adjustment">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeTransactionModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Log Movement</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Supplier Modal -->
+  <div class="modal-overlay" id="supplier-modal">
+    <div class="modal glass">
+      <div class="modal-header">
+        <h3>Add Supplier</h3>
+        <button class="close-btn" onclick="closeSupplierModal()"><i data-lucide="x"></i></button>
+      </div>
+      <form id="supplier-form" onsubmit="saveSupplier(event)">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="s-name">Company Name *</label>
+              <input type="text" id="s-name" required placeholder="e.g. TechCorp Distributors">
+            </div>
+            <div class="form-group">
+              <label for="s-contact">Contact Name</label>
+              <input type="text" id="s-contact" placeholder="e.g. John Doe">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="s-email">Email Address</label>
+              <input type="email" id="s-email" placeholder="e.g. contact@techcorp.com">
+            </div>
+            <div class="form-group">
+              <label for="s-phone">Phone Number</label>
+              <input type="text" id="s-phone" placeholder="e.g. +1-555-0199">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="s-address">Supplier Address</label>
+            <textarea id="s-address" placeholder="e.g. 500 Corporate Parkway, Suite 100..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeSupplierModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Supplier</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JS Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
